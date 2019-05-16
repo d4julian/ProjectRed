@@ -4,6 +4,7 @@ import codechicken.lib.packet.PacketCustom
 import codechicken.lib.packet.ICustomPacketHandler.{IClientPacketHandler, IServerPacketHandler}
 import codechicken.multipart.BlockMultipart
 import mrtjp.core.item.{ItemKey, ItemKeyStack}
+import mrtjp.projectred.ProjectRedTransportation
 import net.minecraft.client.Minecraft
 import net.minecraft.entity.player.EntityPlayerMP
 import net.minecraft.network.play.{INetHandlerPlayClient, INetHandlerPlayServer}
@@ -59,10 +60,8 @@ object TransportationCPH extends TransportationPH with IClientPacketHandler
     }
 }
 
-object TransportationSPH extends TransportationPH with IServerPacketHandler
-{
-    def handlePacket(packet:PacketCustom, sender:EntityPlayerMP, handler:INetHandlerPlayServer) = packet.getType match
-    {
+object TransportationSPH extends TransportationPH with IServerPacketHandler {
+    def handlePacket(packet: PacketCustom, sender: EntityPlayerMP, handler: INetHandlerPlayServer) = packet.getType match {
         case this.gui_ChipNBTSet => setChipNBT(packet, sender)
         case this.gui_Request_action => handleRequestAction(packet, sender)
         case this.gui_Request_submit => handleRequestSubmit(packet, sender)
@@ -71,16 +70,13 @@ object TransportationSPH extends TransportationPH with IServerPacketHandler
         case _ =>
     }
 
-    private def handleFirewallAction(packet:PacketCustom, sender:EntityPlayerMP)
-    {
+    private def handleFirewallAction(packet: PacketCustom, sender: EntityPlayerMP) {
         val bc = packet.readPos()
         val action = packet.readByte()
         val t = BlockMultipart.getPart(sender.world, bc, 6)
-        if (t.isInstanceOf[RoutedFirewallPipe])
-        {
+        if (t.isInstanceOf[RoutedFirewallPipe]) {
             val p = t.asInstanceOf[RoutedFirewallPipe]
-            action match
-            {
+            action match {
                 case 0 => p.filtExclude = !p.filtExclude
                 case 1 => p.allowRoute = !p.allowRoute
                 case 2 => p.allowBroadcast = !p.allowBroadcast
@@ -90,26 +86,24 @@ object TransportationSPH extends TransportationPH with IServerPacketHandler
         }
     }
 
-//    private def handleRouterUtilAction(packet:PacketCustom, sender:EntityPlayerMP)
-//    {
-//        val c = sender.openContainer
-//        if (c.isInstanceOf[ChipUpgradeContainer])
-//        {
-//            val r = c.asInstanceOf[ChipUpgradeContainer]
-//            val action = packet.readString
-//            if (action == "inst") r.install()
-//        }
-//    }
+    //    private def handleRouterUtilAction(packet:PacketCustom, sender:EntityPlayerMP)
+    //    {
+    //        val c = sender.openContainer
+    //        if (c.isInstanceOf[ChipUpgradeContainer])
+    //        {
+    //            val r = c.asInstanceOf[ChipUpgradeContainer]
+    //            val action = packet.readString
+    //            if (action == "inst") r.install()
+    //        }
+    //    }
 
-    private def handleRequestListRefresh(packet:PacketCustom, sender:EntityPlayerMP)
-    {
+    private def handleRequestListRefresh(packet: PacketCustom, sender: EntityPlayerMP) {
         val t = BlockMultipart.getPart(sender.world, packet.readPos(), 6)
         if (t.isInstanceOf[IRouterContainer])
             sendRequestList(t.asInstanceOf[IRouterContainer], sender, packet.readBoolean, packet.readBoolean)
     }
 
-    private def handleRequestAction(packet:PacketCustom, sender:EntityPlayerMP)
-    {
+    private def handleRequestAction(packet: PacketCustom, sender: EntityPlayerMP) {
         val t = BlockMultipart.getPart(sender.world, packet.readPos(), 6)
         if (t.isInstanceOf[IRouterContainer]) {
             val ident = packet.readString
@@ -117,8 +111,7 @@ object TransportationSPH extends TransportationPH with IServerPacketHandler
         }
     }
 
-    private def sendRequestList(requester:IRouterContainer, player:EntityPlayerMP, collectBroadcast:Boolean, collectCrafts:Boolean)
-    {
+    private def sendRequestList(requester: IRouterContainer, player: EntityPlayerMP, collectBroadcast: Boolean, collectCrafts: Boolean) {
         CollectionPathFinder.clear()
         CollectionPathFinder.start = requester
         CollectionPathFinder.collectBroadcasts = collectBroadcast
@@ -129,7 +122,7 @@ object TransportationSPH extends TransportationPH with IServerPacketHandler
         val packet2 = new PacketCustom(channel, gui_Request_list)
         packet2.writeInt(map.size)
 
-        for ((k,v) <- map) {
+        for ((k, v) <- map) {
             val s = if (v == 0) 1 else v //TODO find way to mark craft items.
             packet2.writeItemStack(k.makeStack(s))
         }
@@ -137,8 +130,7 @@ object TransportationSPH extends TransportationPH with IServerPacketHandler
         packet2.compress().sendToPlayer(player)
     }
 
-    private def handleRequestSubmit(packet:PacketCustom, sender:EntityPlayerMP)
-    {
+    private def handleRequestSubmit(packet: PacketCustom, sender: EntityPlayerMP) {
         val t = BlockMultipart.getPart(sender.world, packet.readPos(), 6)
         if (t.isInstanceOf[IRouterContainer]) {
             import mrtjp.projectred.transportation.RequestFlags._
@@ -157,26 +149,33 @@ object TransportationSPH extends TransportationPH with IServerPacketHandler
 
             r.startRequest()
 
-            if (r.requested > 0)
-            {
-                sender.sendMessage(new TextComponentString("Successfully requested "+r.requested+" of "+s.key.getName+"."))
+            if (r.requested > 0) {
+                sender.sendMessage(new TextComponentString("Successfully requested " + r.requested + " of " + s.key.getName + "."))
                 RouteFX2.spawnType1(RouteFX2.color_request, t.asInstanceOf[IRouterContainer].getPipe)
             }
-            else
-            {
-                sender.sendMessage(new TextComponentString("Could not request "+s.stackSize+" of "+s.key.getName+". Missing:"))
-                for ((k,v) <- r.getMissing) sender.sendMessage(new TextComponentString(v+" of "+k.getName))
+            else {
+                sender.sendMessage(new TextComponentString("Could not request " + s.stackSize + " of " + s.key.getName + ". Missing:"))
+                for ((k, v) <- r.getMissing) sender.sendMessage(new TextComponentString(v + " of " + k.getName))
             }
 
             sendRequestList(t.asInstanceOf[IRouterContainer], sender, pull, craft)
         }
     }
 
-    private def setChipNBT(packet:PacketCustom, player:EntityPlayerMP)
-    {
+    private def setChipNBT(packet: PacketCustom, player: EntityPlayerMP) {
         val slot = packet.readUByte()
         val stack = packet.readItemStack()
-        player.inventory.setInventorySlotContents(slot, stack)
-        player.inventory.markDirty()
+        if (stack.getItem == ProjectRedTransportation.itemRoutingChip) {
+            val playerStack = player.inventory.getStackInSlot(slot)
+            if (playerStack.getItem == ProjectRedTransportation.itemRoutingChip) {
+                player.inventory.setInventorySlotContents(slot, stack)
+
+                val chip = ItemRoutingChip.loadChipFromItemStack(stack)
+                ItemRoutingChip.saveChipToItemStack(playerStack, chip)
+
+                player.inventory.setInventorySlotContents(slot, playerStack)
+                player.inventory.markDirty()
+            }
+        }
     }
 }
