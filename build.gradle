@@ -63,7 +63,7 @@ dependencies {
     runtime "mezz.jei:jei_${config.mc_version}:${config.jei_version}"
 }
 
-def build_number = project.hasProperty("manualbuildnum") ? project.manualbuildnum : (Integer.parseInt(System.getenv("BUILD_NUMBER") ?: "1")).toString()
+def build_number = project.hasProperty("manualbuildnum") ? project.manualbuildnum : (Integer.parseInt(System.getenv("BUILD_NUMBER") ?: "92")).toString()
 version = "${project.config.mod_version}."+build_number
 println "Starting build for $archivesBaseName $version for MC $config.mc_version-$config.forge_version"
 
